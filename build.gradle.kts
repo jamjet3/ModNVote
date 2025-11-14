@@ -1,5 +1,5 @@
 plugins {
-    `java`
+    java
 }
 
 group = "com.modnmetl"
@@ -16,10 +16,11 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.10-R0.1-SNAPSHOT")
-    compileOnly("me.clip:placeholderapi:2.11.6")
-    implementation("org.xerial:sqlite-jdbc:3.46.0.1")
+    compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
+    compileOnly("me.clip:placeholderapi:2.11.5")
+    compileOnly("org.xerial:sqlite-jdbc:3.46.0.0") // provided by server / JVM
 }
+
 
 tasks.processResources {
     filesMatching("plugin.yml") {
@@ -27,16 +28,35 @@ tasks.processResources {
     }
 }
 
+/**
+ * Uber jar that only bundles:
+ *  - your plugin classes
+ *  - sqlite-jdbc
+ *
+ * Paper + PlaceholderAPI stay as external plugins, not shaded in.
+ */
 tasks.register<Jar>("uberJar") {
     dependsOn(tasks.named("jar"))
+
+    // Final filename: modnvote-1.1.3.jar
+    archiveFileName.set("modnvote-${project.version}.jar")
     archiveClassifier.set("")
-    val runtimeCp = configurations.runtimeClasspath.get()
+
+     // Always include our own compiled classes
     from(sourceSets.main.get().output)
-    from(runtimeCp.filter { it.name.endsWith(".jar") }.map { zipTree(it) })
+
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
     manifest {
         attributes["Implementation-Title"] = "ModNVote"
         attributes["Implementation-Version"] = project.version
         attributes["Built-By"] = "MODN METL"
     }
+}
+
+/**
+ * Make the normal `build` task also produce the uberJar.
+ */
+tasks.named("build") {
+    dependsOn("uberJar")
 }
