@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "com.modnmetl"
-version = "1.1.3"
+version = "1.1.4"
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(21))
