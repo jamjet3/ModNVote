@@ -2,195 +2,237 @@
 
 **Modern, transparent community voting for PaperMC 1.21.x**
 
-A privacy-first, lightweight, and production-ready **yes/no voting plugin** for Minecraft servers — designed for communities that value fairness, trust, and auditability.
+A privacy‑first, lightweight, and production‑ready **yes/no voting plugin** for Minecraft servers — designed for modern communities that value fairness, trust, and data integrity.
 
-This version includes enhanced **tamper detection**, **vote-privacy protection**, and **automatic integrity alerts**.
+ModNVote is built by [**MODN METL LTD**](https://modnmetl.com) and open‑sourced to promote transparent community decision‑making.
 
----
-
-## ✨ Key Features
-
-- Anonymous voting (`/modnvote yes|no`) — *no vote choice is ever logged to console by the plugin*.
-- Live status: `/modnvote status`
-    - Shows YES/NO tallies
-    - Confirms whether **this tally includes a vote from you**
-    - Shows whether the tally is **cryptographically VALID or COMPROMISED**
-- Cryptographic verification: `/modnvote verify`
-    - Recomputes HMAC from current participants and tallies
-    - Broadcasts a **tamper warning** server-wide if integrity fails
-- Votes are only accepted when:
-    - The current tally/HMAC are cryptographically valid, or
-    - No votes have yet been recorded (fresh round)
-- After each accepted vote:
-    - The tally is updated
-    - A **new cryptographic seal (HMAC)** is applied
-    - The player is told that their vote has been applied and the seal updated
-- Admin tools:
-    - `/modnvote reset`
-    - `/modnvote reload`
-    - `/modnvote audit`
-    - `/modnvote fullaudit`
-- IP duplicate-vote prevention with configurable bypass permission
-- SQLite persistence for reliability and restart safety
-- PlaceholderAPI support
-
-> ModNVote is a successor to the PineVote plugin, rebuilt for broader use under the MODN METL brand.
+![CI](https://github.com/MODNMETL/ModNVote/actions/workflows/ci.yml/badge.svg)
+![Java](https://img.shields.io/badge/Java-21-007396)
+![Paper](https://img.shields.io/badge/Paper-1.21.x-blue)
+![License: MIT](https://img.shields.io/badge/License-MIT-green)
+![Release](https://img.shields.io/github/v/release/MODNMETL/ModNVote?display_name=tag)
 
 ---
 
-## 🔐 Privacy & Integrity
+## ✨ Features (v1.1.5)
 
-### Vote secrecy
+- **GUI voting** — `/modnvote` opens a simple Yes/No GUI; players click to vote, in total privacy.
+- **Single vote per player** (per round) using UUID.
+- **IP‑based duplicate prevention** with configurable bypass permission.
+- **Cryptographic integrity seal** over:
+    - current YES / NO tallies, and
+    - the full ordered list of participating UUIDs.
+- **On‑vote integrity enforcement**:
+    - Before a new vote is accepted, the plugin verifies that the existing tally and participant list still match the stored HMAC.
+    - If verification fails, the vote is rejected and the system enters a **suspect** state (see below).
+- **Suspect tally detection & broadcast**:
+    - If anyone tampers with the SQLite database or tally table, integrity checks will fail.
+    - Staff are warned and online players can be alerted that the vote has been compromised.
+- **Status with self‑awareness**:
+    - `/modnvote status` reports YES/NO counts **and** whether the tally currently has a valid integrity seal.
+    - It also tells the viewer whether *their* own vote is included in the tally.
+- **Admin audit tools**:
+    - `/modnvote audit` — quick summary of total voters, bypass voters, and tallies.
+    - `/modnvote fullaudit` — groups voters by IP to highlight clusters and potential alts (does not reveal how they voted).
+    - `/modnvote reset` — admin command to clear all votes and reset the integrity seal.
+- **Config‑driven messaging** — all player‑facing messages live in `config.yml`.
+- **SQLite persistence** — votes survive restarts.
+- **PlaceholderAPI support** — expose YES/NO counts and percentages for scoreboards, sidebars, etc.
+- Built for **Paper 1.21.x** and Java 21.
 
-ModNVote does **not** log:
+> ModNVote is the spiritual successor to the older PineVote plugin, rebuilt for broader use under the MODN METL brand.
 
-- which player voted YES or NO
-- any direct mapping of identity → vote choice
+---
 
-It only uses per-player UUIDs and IPs internally to enforce “one vote per person / per location” and for audit tools like `/audit` and `/fullaudit`.
+## 🕊️ Privacy & Integrity Model
 
-Minecraft itself will still log commands like `/modnvote yes` to the server log — this is handled by the server, not by ModNVote.
+ModNVote is designed around two principles:
 
-### Tamper detection & protection
+1. **Privacy** — make it difficult for anyone (including staff) to link a player to a specific vote via logs alone.
+2. **Integrity** — make it easy to detect if someone has quietly tampered with vote data.
 
-ModNVote maintains:
+### How privacy is protected
 
-- A list of all participants’ UUIDs for the current round
-- An internal tally: YES and NO counts
-- A cryptographic HMAC (using a per-round secret pepper) over:
+- Players vote **via GUI** (`/modnvote` → click Yes/No).
+    - There is no command in chat or console logs which would reveal their vote.
+    - The plugin writes votes directly to the database without echoing the exact choice to console.
+- The database stores:
+    - UUID, IP, bypass flag, vote choice and round; and
+    - a tally row containing YES / NO counts plus an HMAC over (round, YES, NO, ordered UUIDs).
+- Staff can still see **who participated** (via audits), but not which way they voted just from logs.
+
+> ModNVote stores only who participated in a round and the overall YES/NO tallies.
+It does not record per-player choices, so a server owner cannot directly see how any specific player voted, except in trivial cases like a unanimous vote or a round with a single voter.
+
+### How integrity is enforced
+
+- Every time votes change, ModNVote computes a **canonical string** from:
     - round id
-    - YES count
-    - NO count
-    - the sorted list of participant UUIDs
+    - YES and NO tallies
+    - ordered list of all voter UUIDs
+- It computes a **HMAC‑SHA256** using a per‑round secret pepper stored on disk and saves the hex digest.
+- On key operations (vote, status, verify, admin actions), ModNVote recomputes the HMAC and compares:
+    - If they match → the tally is **cryptographically valid**, and this is reported to the user.
+    - If they don’t → the tally is flagged as **compromised**, votes are rejected, and alerts are shown.
 
-If any of this is altered offline (for example via manual database editing):
-
-- `/modnvote verify` reports **Verification failed**
-- A **server-wide warning broadcast** is sent
-- An error is logged to console
-- Future votes are **blocked** until the integrity issue is resolved (e.g. by restoring a valid backup)
-
-### Verified before and after each vote
-
-When a player casts a vote:
-
-1. The plugin first checks the current tally’s integrity.
-    - If **no votes exist yet**, it reports that it is starting a fresh sealed tally.
-    - If integrity is **valid**, it tells the player that the tally has been cryptographically verified and that their vote is now being applied.
-    - If integrity is **compromised or an error occurs**, the vote is blocked and the player is advised to contact staff.
-2. After the vote is accepted:
-    - The tally is updated
-    - A new HMAC is computed
-    - The player is told that their vote has been recorded and the cryptographic seal has been updated.
+There is **no force‑approve option**: if the tally has been tampered with, the only supported recovery path is to investigate and either restore from backup or reset the round.
 
 ---
 
-## 📝 Commands
+## 🕹️ Commands
 
-| Command | Permission | Description |
-|--------|------------|-------------|
-| `/modnvote yes` | `modnvote.vote` | Cast a YES vote (only if integrity is valid or no votes exist yet) |
-| `/modnvote no` | `modnvote.vote` | Cast a NO vote (same integrity rules as above) |
-| `/modnvote status` | `modnvote.status` | View tallies, integrity status, and whether this tally includes your vote |
-| `/modnvote verify` | `modnvote.verify` | Run a full integrity check against stored HMAC |
-| `/modnvote reset` | `modnvote.admin.reset` | Reset all votes for the current round |
-| `/modnvote reload` | `modnvote.admin.reload` | Reload configuration from `config.yml` |
-| `/modnvote audit` | `modnvote.admin.audit` | View totals, bypass counts, and tallies |
-| `/modnvote fullaudit` | `modnvote.admin.fullaudit` | Group voters by IP (without revealing which way they voted) |
+All commands are `/modnvote ...`.
 
----
+### Player
 
-## ⚙️ Configuration (excerpt)
+- `/modnvote`
+    - Opens the Yes/No GUI.
+    - If the tally is currently cryptographically valid, the player is told this **before** their click is applied.
+    - After the vote is stored, the player is told that:
+        - their vote was accepted, and
+        - the integrity seal has been re‑applied to cover the updated tallies.
 
-```yaml
-# plugins/ModNVote/config.yml
+### Utility / admin
 
-messages:
-  voted_yes: "&aThanks — your &2YES &avote has been recorded and the cryptographic seal has been updated."
-  voted_no: "&aThanks — your &cNO &avote has been recorded and the cryptographic seal has been updated."
-  already_voted: "&cYou have already voted."
-  duplicate_ip: "&cA vote from your location has already been recorded."
-  reset_done: "&eAll votes reset."
-  reloaded: "&eModNVote configuration reloaded."
+- `/modnvote status`
+    - Shows YES / NO tallies.
+    - States whether the tally is **cryptographically valid** or **compromised**.
+    - Tells the viewer:
+        - “This tally **includes** a vote from you” or
+        - “This tally **does not include** a vote from you”.
 
-  audit_summary: "Audit » Total: {total}, With bypass: {bypass} ({percent}%) | YES: {yes}, NO: {no}"
-  fullaudit_header: "Full audit (grouped by IP). Showing voters with bypass; non-bypass on same IP listed under each group."
+- `/modnvote verify`
+    - Recomputes the canonical string and HMAC and reports validity.
+    - If invalid, the system does **not** update the seal; it simply reports the mismatch.
 
-  verify_no_votes: "&7No votes have been cast yet; nothing to verify."
-  verify_valid: "&aVerification passed: tally matches participant set."
-  verify_invalid: "&cVerification failed: tally does NOT match participant set."
-  verify_error: "&cVerification failed due to an internal error; please contact staff."
-  verify_broadcast_compromised: "[ModNVote] &cWARNING: vote integrity check FAILED. Vote data may have been altered. Please contact staff."
+- `/modnvote reset`
+    - Clears participation, tallies, and stored HMAC for the current round.
+    - A new integrity seal will be created as soon as the first valid vote is cast.
 
-  integrity_compromised_vote_block: "&cVoting is currently disabled because the vote integrity check has failed. Please contact staff."
-  integrity_error_vote_block: "&cYour vote could not be processed due to an internal integrity error. Please try again later or contact staff."
-  integrity_ok_before_vote: "&aCurrent tally integrity has been cryptographically validated. Applying your vote..."
-  integrity_ok_first_vote: "&aNo votes recorded yet. Starting a fresh cryptographically sealed tally with your vote."
+- `/modnvote reload`
+    - Reloads `config.yml` and messages.
 
-  status_includes_you: "&bThis tally &aDOES &binclude a vote from you."
-  status_excludes_you: "&bThis tally &cDOES NOT &binclude a vote from you."
+- `/modnvote audit`
+    - Shows a concise summary, for example:
+        - `Audit » Total: 42, With bypass: 3 (7.1%) | YES: 30, NO: 12`
 
-permissions:
-  # Default bypass node used to allow multiple players on the same IP to vote
-  # (e.g. siblings in the same household).
-  bypass_node: "modnvote.bypass"
-  # If you already use an alt-protection plugin, you can set this to its bypass node instead
-  # (for example: "noaltsexploits.bypass").
-
-cache:
-  refresh_seconds: 30
-
-logging:
-  # To protect privacy, ModNVote no longer logs votes to console.
-  audit_votes_to_console: false
-  # You may still log bypass usage if desired (does not reveal vote choice).
-  audit_bypass_to_console: true
-
-integrity:
-  # Pattern for storing per-round pepper keys on disk
-  pepper_file_pattern: "round-%d.key"
-```
+- `/modnvote fullaudit`
+    - Groups voters by IP and lists bypass vs non‑bypass users per IP.
+    - Useful for spotting suspicious clusters without revealing vote choices.
 
 ---
 
-## 🧩 PlaceholderAPI
-
-If PlaceholderAPI is present, ModNVote registers:
-
-| Placeholder | Description |
-|------------|-------------|
-| `%modnvote_yes%` | Number of YES votes |
-| `%modnvote_no%` | Number of NO votes |
-| `%modnvote_total%` | Total number of votes |
-
-Example usage (scoreboard or GUI):
+## 🎛️ Permissions
 
 ```text
-Yes Votes: %modnvote_yes%
-No Votes: %modnvote_no%
-Total: %modnvote_total%
+modnvote.use             – allow /modnvote (GUI voting)
+modnvote.vote            – allow casting a vote via the GUI
+modnvote.status          – allow /modnvote status
+modnvote.verify          – allow /modnvote verify
+
+modnvote.admin.reset     – allow /modnvote reset
+modnvote.admin.reload    – allow /modnvote reload
+modnvote.admin.audit     – allow /modnvote audit
+modnvote.admin.fullaudit – allow /modnvote fullaudit
+
+modnvote.bypass          – allow voting even if someone on the same IP has already voted
 ```
+
+By default, only OPs get the `modnvote.admin.*` permissions. Regular players typically get `modnvote.use`, `modnvote.vote`, and `modnvote.status`.
+
+The bypass node is configurable in `config.yml` — you can keep `modnvote.bypass` or point it at an existing alt‑account / VPN‑detection plugin’s bypass node.
 
 ---
 
-## 📦 Installation
+## 🔌 PlaceholderAPI
 
-1. Download the latest `modnvote-x.x.x.jar` from GitHub Releases.
-2. Drop the jar into your server’s `plugins/` directory.
-3. Start (or restart) your Paper server.
-4. Edit `plugins/ModNVote/config.yml` if needed.
-5. Run `/modnvote reload` to apply changes.
+If PlaceholderAPI is installed, ModNVote registers a small set of placeholders (under a `modnvote_...` prefix) so you can drop tallies into scoreboards, holograms, etc.
+
+Examples (names may vary slightly depending on your expansion implementation):
+
+```text
+%modnvote_yes%          – current YES tally
+%modnvote_no%           – current NO tally
+%modnvote_total%        – total votes
+%modnvote_yes_percent%  – YES percentage
+%modnvote_no_percent%   – NO percentage
+```
+
+These are backed by the same cached tallies used in `/modnvote status` and are safe to use frequently.
+
+---
+
+## ⚙️ Configuration
+
+On first run, ModNVote generates a `config.yml` with sections for:
+
+- `messages.*` — all player‑facing messages, including:
+    - voted_yes, voted_no
+    - already_voted, duplicate_ip
+    - reset_done, reloaded
+    - audit and fullaudit texts
+    - verify_valid / verify_invalid summaries
+- `cache.refresh_seconds` — how often to refresh tally caches asynchronously.
+- `logging.*` — whether to log votes and bypass usage to console (these avoid logging which option was chosen).
+- `permissions.bypass_node` — the permission string treated as a bypass flag.
+- `integrity.pepper_file_pattern` — where per‑round secret keys are stored on disk.
+
+You are encouraged to customise messages to match your server’s tone.
+
+---
+
+## 🚀 Installation
+
+1. Ensure your server is running **Paper 1.21.x** with **Java 21**.
+2. Drop `modnvote-1.1.5.jar` into your `plugins/` folder.
+3. (Optional) Install **PlaceholderAPI** if you want placeholders.
+4. Start the server to generate `config.yml`.
+5. Configure permissions with LuckPerms or your chosen permissions plugin.
+6. Ask players to use `/modnvote` to open the GUI and vote.
+
+---
+
+## 🧭 Roadmap
+
+- Multi‑question polls and richer GUI flows
+- MySQL support for large networks
+- Time‑boxed votes with automatic open/close windows
+- Optional player‑visible confirmation tokens (for external audits)
+- REST / webhook hooks for dashboards or external tooling
+
+Suggestions are welcome — open an issue or discussion on GitHub.
+
+---
+
+## 🤝 Contributing
+
+Contributions are very welcome.
+
+1. Fork the repository on GitHub.
+2. Create a feature branch from `main`.
+3. Run `./gradlew clean build` before submitting.
+4. Open a Pull Request with a clear description and rationale.
+
+Please keep the code style close to the existing Java 21 patterns and avoid introducing unnecessary dependencies.
+
+---
+
+## 🔐 Security
+
+If you discover a vulnerability or serious integrity issue:
+
+- **Do not** post details publicly.
+- Email: **security@modnmetl.com** with a clear description and steps to reproduce.
+- We’ll aim to respond and patch as quickly as possible.
 
 ---
 
 ## 📜 License
 
-This project is licensed under the **MIT License** — see the [LICENSE](./LICENSE) file for details.  
-You are free to use, modify, and distribute this software with attribution.
+This project is licensed under the **MIT License** — see the [LICENSE](./LICENSE) file for details.
 
 ```text
-Copyright (c) 2025
-MODN METL LTD
+Copyright (c) 2025 MODN METL LTD
 Developed by Jamie E. Thompson (@jamjet3)
 ```
 
@@ -198,13 +240,10 @@ Developed by Jamie E. Thompson (@jamjet3)
 
 ## 🏗️ Credits
 
-- **Development Lead:** Jamie E. Thompson ([@jamjet3](https://github.com/jamjet3))
+- **Development Lead:** [Jamie E. Thompson](https://github.com/jamjet3)
 - **Maintainer:** [MODN METL LTD](https://github.com/MODNMETL)
 - **Community Testing:** Pinecraft Equestrian SMP
-- **Build System:** Gradle
-- **Supported Platforms:** PaperMC 1.21.x
+- **Build System:** Gradle (Java 21, PaperMC 1.21.x)
 
----
-
-> “Trust, but verify.” — The guiding principle behind **ModNVote**  
+> “Trust, but verify.” — The guiding principle behind **ModNVote**.  
 > Built to help communities make fair, transparent decisions — the modern way.
