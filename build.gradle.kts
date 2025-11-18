@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "com.modnmetl"
-version = "1.1.4"
+version = "1.1.5"
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(21))
@@ -12,15 +12,15 @@ java {
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
+    // PlaceholderAPI repo (needed ONLY for compilation)
     maven("https://repo.extendedclip.com/content/repositories/placeholderapi/")
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
     compileOnly("me.clip:placeholderapi:2.11.5")
-    compileOnly("org.xerial:sqlite-jdbc:3.46.0.0") // provided by server / JVM
+    implementation("org.xerial:sqlite-jdbc:3.46.0.0")
 }
-
 
 tasks.processResources {
     filesMatching("plugin.yml") {
@@ -29,24 +29,13 @@ tasks.processResources {
 }
 
 /**
- * Uber jar that only bundles:
- *  - your plugin classes
- *  - sqlite-jdbc
- *
- * Paper + PlaceholderAPI stay as external plugins, not shaded in.
+ * Lightweight jar: only your plugin classes + resources.
+ * SQLite is provided by the server’s classpath, not shaded.
  */
-tasks.register<Jar>("uberJar") {
-    dependsOn(tasks.named("jar"))
-
-    // Final filename: modnvote-1.1.3.jar
+tasks.jar {
     archiveFileName.set("modnvote-${project.version}.jar")
-    archiveClassifier.set("")
 
-     // Always include our own compiled classes
-    from(sourceSets.main.get().output)
-
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-
+    // keep it simple; nothing fancy here
     manifest {
         attributes["Implementation-Title"] = "ModNVote"
         attributes["Implementation-Version"] = project.version
@@ -55,8 +44,19 @@ tasks.register<Jar>("uberJar") {
 }
 
 /**
- * Make the normal `build` task also produce the uberJar.
+ * Legacy uberJar task – kept around in case you ever need
+ * a fat jar again. CI / releases use the normal `jar` task.
  */
-tasks.named("build") {
-    dependsOn("uberJar")
+tasks.register<Jar>("uberJar") {
+    dependsOn(tasks.named("jar"))
+    archiveClassifier.set("")
+    val runtimeCp = configurations.runtimeClasspath.get()
+    from(sourceSets.main.get().output)
+    from(runtimeCp.filter { it.name.endsWith(".jar") }.map { zipTree(it) })
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes["Implementation-Title"] = "ModNVote"
+        attributes["Implementation-Version"] = project.version
+        attributes["Built-By"] = "MODN METL"
+    }
 }
