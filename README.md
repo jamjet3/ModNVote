@@ -2,7 +2,7 @@
 
 **Modern, transparent community voting for PaperMC 1.21.x**
 
-A privacy‑first, lightweight, and production‑ready **yes/no voting plugin** for Minecraft servers — designed for modern communities that value fairness, trust, and data integrity.
+A privacy‑first, lightweight, and production‑ready **yes/no voting plugin** for Minecraft servers - designed for modern communities that value fairness, trust, and data integrity.
 
 ModNVote is built by [**MODN METL LTD**](https://modnmetl.com) and open‑sourced to promote transparent community decision‑making.
 
@@ -16,7 +16,7 @@ ModNVote is built by [**MODN METL LTD**](https://modnmetl.com) and open‑source
 
 ## ✨ Features (v1.1.5)
 
-- **GUI voting** — `/modnvote` opens a simple Yes/No GUI; players click to vote, in total privacy.
+- **GUI voting** - `/modnvote` opens a simple Yes/No GUI; players click to vote, in total privacy.
 - **Single vote per player** (per round) using UUID.
 - **IP‑based duplicate prevention** with configurable bypass permission.
 - **Cryptographic integrity seal** over:
@@ -32,12 +32,12 @@ ModNVote is built by [**MODN METL LTD**](https://modnmetl.com) and open‑source
     - `/modnvote status` reports YES/NO counts **and** whether the tally currently has a valid integrity seal.
     - It also tells the viewer whether *their* own vote is included in the tally.
 - **Admin audit tools**:
-    - `/modnvote audit` — quick summary of total voters, bypass voters, and tallies.
-    - `/modnvote fullaudit` — groups voters by IP to highlight clusters and potential alts (does not reveal how they voted).
-    - `/modnvote reset` — admin command to clear all votes and reset the integrity seal.
-- **Config‑driven messaging** — all player‑facing messages live in `config.yml`.
-- **SQLite persistence** — votes survive restarts.
-- **PlaceholderAPI support** — expose YES/NO counts and percentages for scoreboards, sidebars, etc.
+    - `/modnvote audit` - quick summary of total voters, bypass voters, and tallies.
+    - `/modnvote fullaudit` - groups voters by IP to highlight clusters and potential alts (does not reveal how they voted).
+    - `/modnvote reset` - admin command to clear all votes and reset the integrity seal.
+- **Config‑driven messaging** - all player‑facing messages live in `config.yml`.
+- **SQLite persistence** - votes survive restarts.
+- **PlaceholderAPI support** - expose YES/NO counts and percentages for scoreboards, sidebars, etc.
 - Built for **Paper 1.21.x** and Java 21.
 
 > ModNVote is the spiritual successor to the older PineVote plugin, rebuilt for broader use under the MODN METL brand.
@@ -48,8 +48,8 @@ ModNVote is built by [**MODN METL LTD**](https://modnmetl.com) and open‑source
 
 ModNVote is designed around two principles:
 
-1. **Privacy** — make it difficult for anyone (including staff) to link a player to a specific vote via logs alone.
-2. **Integrity** — make it easy to detect if someone has quietly tampered with vote data.
+1. **Privacy** - make it difficult for anyone (including staff) to link a player to a specific vote via logs alone.
+2. **Integrity** - make it easy to detect if someone has quietly tampered with vote data.
 
 ### How privacy is protected
 
@@ -140,7 +140,7 @@ modnvote.bypass          – allow voting even if someone on the same IP has alr
 
 By default, only OPs get the `modnvote.admin.*` permissions. Regular players typically get `modnvote.use`, `modnvote.vote`, and `modnvote.status`.
 
-The bypass node is configurable in `config.yml` — you can keep `modnvote.bypass` or point it at an existing alt‑account / VPN‑detection plugin’s bypass node.
+The bypass node is configurable in `config.yml` - you can keep `modnvote.bypass` or point it at an existing alt‑account / VPN‑detection plugin’s bypass node.
 
 ---
 
@@ -166,16 +166,16 @@ These are backed by the same cached tallies used in `/modnvote status` and are s
 
 On first run, ModNVote generates a `config.yml` with sections for:
 
-- `messages.*` — all player‑facing messages, including:
+- `messages.*` - all player‑facing messages, including:
     - voted_yes, voted_no
     - already_voted, duplicate_ip
     - reset_done, reloaded
     - audit and fullaudit texts
     - verify_valid / verify_invalid summaries
-- `cache.refresh_seconds` — how often to refresh tally caches asynchronously.
-- `logging.*` — whether to log votes and bypass usage to console (these avoid logging which option was chosen).
-- `permissions.bypass_node` — the permission string treated as a bypass flag.
-- `integrity.pepper_file_pattern` — where per‑round secret keys are stored on disk.
+- `cache.refresh_seconds` - how often to refresh tally caches asynchronously.
+- `logging.*` - whether to log votes and bypass usage to console (these avoid logging which option was chosen).
+- `permissions.bypass_node` - the permission string treated as a bypass flag.
+- `integrity.pepper_file_pattern` - where per‑round secret keys are stored on disk.
 
 You are encouraged to customise messages to match your server’s tone.
 
@@ -200,7 +200,7 @@ You are encouraged to customise messages to match your server’s tone.
 - Optional player‑visible confirmation tokens (for external audits)
 - REST / webhook hooks for dashboards or external tooling
 
-Suggestions are welcome — open an issue or discussion on GitHub.
+Suggestions are welcome - open an issue or discussion on GitHub.
 
 ---
 
@@ -229,7 +229,7 @@ If you discover a vulnerability or serious integrity issue:
 
 ## 📜 License
 
-This project is licensed under the **MIT License** — see the [LICENSE](./LICENSE) file for details.
+This project is licensed under the **MIT License** - see the [LICENSE](./LICENSE) file for details.
 
 ```text
 Copyright (c) 2025 MODN METL LTD
@@ -245,5 +245,5 @@ Developed by Jamie E. Thompson (@jamjet3)
 - **Community Testing:** Pinecraft Equestrian SMP
 - **Build System:** Gradle (Java 21, PaperMC 1.21.x)
 
-> “Trust, but verify.” — The guiding principle behind **ModNVote**.  
-> Built to help communities make fair, transparent decisions — the modern way.
+> “Trust, but verify.” - The guiding principle behind **ModNVote**.  
+> Built to help communities make fair, transparent decisions - the modern way.
